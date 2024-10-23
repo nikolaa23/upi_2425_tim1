@@ -3,5 +3,3 @@ dfedgse
 i
 oi
 ii8iu
-Jure
-Nikola
