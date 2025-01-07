@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikacija za prijavu</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+        .hidden {
+            display: none;
+        }
+        #login-section, #register-section, #main-section {
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            max-width: 500px;
+        }
+        input {
+            width: 90%;
+            margin: 10px 0;
+            padding: 8px;
+        }
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+        #calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 500px;
+        }
+        .day {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+            position: relative;
+        }
+        .day input {
+            width: 90%;
+            margin-top: 5px;
+        }
+        .day .free-day {
+            background-color: #d3f9d8;
+        }
+        .day .over-limit {
+            background-color: #ffcccc;
+        }
+        .today {
+            background-color: #f0f8ff;
+            border-color: #00f;
+            font-weight: bold;
+        }
+        #summary {
+            margin: 20px;
+            font-size: 18px;
+        }
+        #username-display {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #f0f0f0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="login-section">
+        <h2>Prijava</h2>
+        <input type="text" id="login-username" placeholder="Korisničko ime">
+        <input type="password" id="login-password" placeholder="Šifra">
+        <button id="login-btn">Prijavi se</button>
+        <p id="login-error-msg" style="color: red;"></p>
+        <p>Nemate račun? <button id="show-register">Registrirajte se</button></p>
+    </div>
+
+    <div id="register-section" class="hidden">
+        <h2>Registracija</h2>
+        <input type="text" id="register-username" placeholder="Odaberite korisničko ime">
+        <input type="password" id="register-password" placeholder="Odaberite šifru">
+        <button id="register-btn">Registriraj se</button>
+        <p id="register-error-msg" style="color: red;"></p>
+        <p>Već imate račun? <button id="show-login">Prijavite se</button></p>
+    </div>
+
+    <div id="main-section" class="hidden">
+        <div id="username-display">Korisnik: <span id="displayed-username"></span></div>
+        <h2>Dobrodošli!</h2>
+        <div id="settings">
+            <label for="hourly-rate">Unesite vašu satnicu (EUR):</label>
+            <input type="number" id="hourly-rate" placeholder="Satnica" step="0.01" onchange="updateSalary()">
+        </div>
+        <div id="summary">
+            <p>Zbroj radnih sati u ovom mjesecu: <span id="total-hours">0</span></p>
+            <p>Zbroj slobodnih dana: <span id="total-free-days">0</span></p>
+            <p>Vaša ukupna plaća: <span id="total-salary">0</span> EUR</p>
+        </div>
+        <div id="calendar"></div>
+        <button id="save-btn">Spremi podatke</button>
+        <button id="submit-btn">Pošalji</button>
+    </div>
+
+    <script>
+        let users = [];
+
+        const loginSection = document.getElementById('login-section');
+        const registerSection = document.getElementById('register-section');
+        const mainSection = document.getElementById('main-section');
+        const loginButton = document.getElementById('login-btn');
+        const registerButton = document.getElementById('register-btn');
+        const showRegisterButton = document.getElementById('show-register');
+        const showLoginButton = document.getElementById('show-login');
+        const loginErrorMsg = document.getElementById('login-error-msg');
+        const registerErrorMsg = document.getElementById('register-error-msg');
+        const displayedUsername = document.getElementById('displayed-username');
+
+        showRegisterButton.addEventListener('click', () => {
+            loginSection.classList.add('hidden');
+            registerSection.classList.remove('hidden');
+        });
+
+        showLoginButton.addEventListener('click', () => {
+            registerSection.classList.add('hidden');
+            loginSection.classList.remove('hidden');
+        });
+
+        registerButton.addEventListener('click', () => {
+            const username = document.getElementById('register-username').value;
+            const password = document.getElementById('register-password').value;
+
+            if (username && password) {
+                if (users.some(user => user.username === username)) {
+                    registerErrorMsg.textContent = "Korisničko ime je već zauzeto.";
+                } else {
+                    users.push({ username, password });
+                    alert("Uspješno ste registrirani!");
+                    registerSection.classList.add('hidden');
+                    loginSection.classList.remove('hidden');
+                }
+            } else {
+                registerErrorMsg.textContent = "Sva polja moraju biti ispunjena.";
+            }
+        });
+
+        loginButton.addEventListener('click', () => {
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            const user = users.find(user => user.username === username && user.password === password);
+
+            if (user) {
+                loginSection.classList.add('hidden');
+                mainSection.classList.remove('hidden');
+                displayedUsername.textContent = username;
+                generateCalendar();
+            } else {
+                loginErrorMsg.textContent = "Neispravno korisničko ime ili šifra.";
+            }
+        });
+
+        function generateCalendar() {
+            const calendar = document.getElementById('calendar');
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = today.getMonth();
+            const date = today.getDate();
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            calendar.innerHTML = "";
+
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                calendar.appendChild(emptyCell);
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayCell = document.createElement('div');
+                dayCell.classList.add('day');
+                if (day === date) {
+                    dayCell.classList.add('today');
+                }
+                dayCell.innerHTML = `${day}
+                    <input type='number' placeholder='Sati' step='0.01' onchange='validateHours(this)'>
+                    <button onclick='markFreeDay(this)'>Slobodan dan</button>`;
+                calendar.appendChild(dayCell);
+            }
+            updateTotalHours();
+            updateFreeDays();
+        }
+
+        function validateHours(input) {
+            const value = parseFloat(input.value);
+            const dayCell = input.parentElement;
+            if (!isNaN(value) && value > 24) {
+                dayCell.classList.add('over-limit');
+            } else {
+                dayCell.classList.remove('over-limit');
+            }
+            updateTotalHours();
+        }
+
+        function markFreeDay(button) {
+            const dayCell = button.parentElement;
+            const input = dayCell.querySelector('input');
+            if (!dayCell.classList.contains('free-day')) {
+                dayCell.classList.add('free-day');
+                input.disabled = true;
+                button.textContent = 'Ukloni slobodan dan';
+            } else {
+                dayCell.classList.remove('free-day');
+                input.disabled = false;
+                button.textContent = 'Slobodan dan';
+            }
+            updateFreeDays();
+        }
+
+        function updateTotalHours() {
+            const calendar = document.getElementById('calendar');
+            const inputs = calendar.querySelectorAll('input:not([disabled])');
+            let totalHours = 0;
+            inputs.forEach(input => {
+                const value = parseFloat(input.value);
+                if (!isNaN(value)) {
+                    totalHours += value;
+                }
+            });
+            document.getElementById('total-hours').textContent = totalHours.toFixed(2);
+            updateSalary();
+        }
+
+        function updateFreeDays() {
+            const calendar = document.getElementById('calendar');
+            const freeDays = calendar.querySelectorAll('.free-day').length;
+            document.getElementById('total-free-days').textContent = freeDays;
+        }
+
+        function updateSalary() {
+            const hourlyRate = parseFloat(document.getElementById('hourly-rate').value);
+            const totalHours = parseFloat(document.getElementById('total-hours').textContent);
+            if (!isNaN(hourlyRate) && !isNaN(totalHours)) {
+                const totalSalary = hourlyRate * totalHours;
+                document.getElementById('total-salary').textContent = totalSalary.toFixed(2);
+            } else {
+                document.getElementById('total-salary').textContent = "0";
+            }
+        }
+
+        document.getElementById('save-btn').addEventListener('click', () => {
+            const data = {
+                username: displayedUsername.textContent,
+                hourlyRate: document.getElementById('hourly-rate').value,
+                totalHours: document.getElementById('total-hours').textContent,
+                freeDays: document.getElementById('total-free-days').textContent,
+                salary: document.getElementById('total-salary').textContent
+            };
+            localStorage.setItem('userData', JSON.stringify(data));
+            alert('Podaci su uspješno spremljeni!');
+        });
+
+        document.getElementById('submit-btn').addEventListener('click', async () => {
+            const canvas = await html2canvas(document.body);
+            canvas.toBlob(blob => {
+                const file = new File([blob], 'screenshot.png', { type: 'image/png' });
+                const emailLink = document.createElement('a');
+                emailLink.href = `mailto:?subject=Podaci&body=Prilažem screenshot podataka.&attachment=${encodeURIComponent(file.name)}`;
+                emailLink.click();
+            });
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+</html>
+
